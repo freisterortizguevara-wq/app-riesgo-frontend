@@ -247,17 +247,17 @@ async function evaluar(){
         const ingresos = Number(document.getElementById("ingresos").value)
         const deuda = Number(document.getElementById("deuda").value)
 
-        const res = await fetch(`${API}/predict`,{
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json"
-            },
-            body:JSON.stringify({
-                edad,
-                ingresos,
-                deuda
-            })
-        })
+      const res = await fetch(`${API}/predict`,{
+     method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+    },
+      body:JSON.stringify({
+        edad,
+        ingresos,
+        deuda
+    })
+    })
 
         if(!res.ok){
             throw new Error("Error en la API")

@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Credit Risk Intelligence</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+/* =========================
+   🎨 PALETA BANCO DE BOGOTÁ
+========================= */
+:root{
+    --azul-1:#0033a0;
+    --azul-2:#0052cc;
+    --azul-oscuro:#001f5b;
+    --dorado:#f5c542;
+    --gris:#0b1220;
+    --card: rgba(255,255,255,0.06);
+    --border: rgba(255,255,255,0.1);
+}
+
+/* =========================
+   BASE
+========================= */
+body{
+    margin:0;
+    font-family: 'Inter', sans-serif;
+    background: radial-gradient(circle at top, var(--azul-oscuro), #050914 60%);
+    color:white;
+}
+
+/* HEADER */
+.header{
+    padding:25px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.header h1{
+    font-size:22px;
+    letter-spacing:1px;
+}
+
+.badge{
+    background: linear-gradient(90deg,var(--azul-1),var(--azul-2));
+    padding:6px 14px;
+    border-radius:20px;
+    font-size:12px;
+    box-shadow:0 0 15px rgba(0,80,255,0.3);
+}
+
+/* CONTAINER */
+.container{
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+}
+
+/* GRID */
+.grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:20px;
+}
+
+/* CARDS GLASS */
+.card{
+    background: var(--card);
+    border:1px solid var(--border);
+    backdrop-filter: blur(12px);
+    border-radius:18px;
+    padding:22px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.4);
+    transition:0.3s;
+}
+
+.card:hover{
+    transform: translateY(-5px);
+    border-color: rgba(245,197,66,0.4);
+}
+
+/* INPUTS */
+input{
+    width:100%;
+    padding:12px;
+    margin:8px 0;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,0.1);
+    background:rgba(0,0,0,0.3);
+    color:white;
+    outline:none;
+}
+
+/* BOTÓN */
+button{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+    font-weight:bold;
+    color:white;
+    background: linear-gradient(90deg,var(--azul-1),var(--azul-2));
+    box-shadow:0 10px 30px rgba(0,80,255,0.3);
+}
+
+button:hover{
+    transform:scale(1.02);
+}
+
+/* KPIs */
+.kpis{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:15px;
+    margin-bottom:20px;
+}
+
+.kpi{
+    background: rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.08);
+    padding:16px;
+    border-radius:14px;
+    text-align:center;
+}
+
+.kpi h3{
+    color:var(--dorado);
+    font-size:20px;
+}
+
+/* RESULTADO */
+.result{
+    margin-top:15px;
+    text-align:center;
+    font-size:18px;
+}
+
+/* GAUGE */
+.gauge{
+    width:100%;
+    height:14px;
+    background:rgba(255,255,255,0.1);
+    border-radius:10px;
+    overflow:hidden;
+    margin-top:12px;
+}
+
+.gauge-fill{
+    height:100%;
+    width:0%;
+    background: linear-gradient(90deg,#00ff87,#f5c542,#ff3c3c);
+    transition:0.6s;
+}
+
+/* CANVAS */
+canvas{
+    margin-top:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <h1>💳 Riesgo Crediticio APP Freister Ortiz</h1>
+    <div class="badge">Banco de Bogotá </div>
+</div>
+
+<div class="container">
+
+    <!-- KPIs -->
+    <div class="kpis">
+        <div class="kpi">
+            <h3 id="kpiTotal">0</h3>
+            <p>Evaluaciones</p>
+        </div>
+        <div class="kpi">
+            <h3 id="kpiHigh">0</h3>
+            <p>Riesgo Alto</p>
+        </div>
+        <div class="kpi">
+            <h3 id="kpiAvg">0%</h3>
+            <p>Promedio</p>
+        </div>
+    </div>
+
+    <div class="grid">
+
+        <!-- FORM -->
+        <div class="card">
+            <h2>Evaluación de Cliente</h2>
+
+            <input type="number" id="edad" placeholder="Edad">
+            <input type="number" id="ingresos" placeholder="Ingresos mensuales">
+            <input type="number" id="deuda" placeholder="Deuda total">
+
+            <button onclick="evaluar()">Analizar Riesgo</button>
+
+            <div class="result" id="resultado"></div>
+
+            <div class="gauge">
+                <div class="gauge-fill" id="gauge"></div>
+            </div>
+        </div>
+
+        <!-- CHART -->
+        <div class="card">
+            <h3>📊 Evolución del Riesgo Crediticio</h3>
+            <canvas id="chart"></canvas>
+        </div>
+
+    </div>
+
+</div>
+
+<script>
+
+const API = "http://127.0.0.1:5000/predict"
+
+let historial = []
+let altos = 0
+
+let chart = new Chart(document.getElementById("chart"), {
+    type: "line",
+    data: {
+        labels: [],
+        datasets: [{
+            label: "Probabilidad de Riesgo",
+            data: [],
+            borderColor: "#f5c542",
+            borderWidth: 2,
+            tension: 0.3
+        }]
+    }
+})
+
+async function evaluar(){
+
+    const edad = Number(document.getElementById("edad").value)
+    const ingresos = Number(document.getElementById("ingresos").value)
+    const deuda = Number(document.getElementById("deuda").value)
+
+    const res = await fetch(API,{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({edad,ingresos,deuda})
+    })
+
+    const data = await res.json()
+
+    const prob = data.probabilidad * 100
+
+    historial.push(prob)
+
+    if(data.riesgo === 1) altos++
+
+    document.getElementById("resultado").innerHTML =
+        data.nivel_riesgo === "ALTO"
+        ? "🔴 Riesgo Alto"
+        : data.nivel_riesgo === "MEDIO"
+        ? "🟠 Riesgo Medio"
+        : "🟢 Riesgo Bajo"
+
+    document.getElementById("gauge").style.width = prob + "%"
+
+    document.getElementById("kpiTotal").innerText = historial.length
+    document.getElementById("kpiHigh").innerText = altos
+
+    let avg = historial.reduce((a,b)=>a+b,0)/historial.length
+    document.getElementById("kpiAvg").innerText = avg.toFixed(1)+"%"
+
+    chart.data.labels.push(historial.length)
+    chart.data.datasets[0].data.push(prob)
+    chart.update()
+}
+
+</script>
+
+</body>
+</html>

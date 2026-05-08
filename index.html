@@ -220,7 +220,7 @@ canvas{
 
 <script>
 
-const API = "https://app-riesgo-backend-production-5587.up.railway.app/predict""
+const API = "https://app-riesgo-backend-production-5587.up.railway.app"
 
 let historial = []
 let altos = 0
@@ -241,42 +241,68 @@ let chart = new Chart(document.getElementById("chart"), {
 
 async function evaluar(){
 
-    const edad = Number(document.getElementById("edad").value)
-    const ingresos = Number(document.getElementById("ingresos").value)
-    const deuda = Number(document.getElementById("deuda").value)
+    try{
 
-    const res = await fetch(API,{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({edad,ingresos,deuda})
-    })
+        const edad = Number(document.getElementById("edad").value)
+        const ingresos = Number(document.getElementById("ingresos").value)
+        const deuda = Number(document.getElementById("deuda").value)
 
-    const data = await res.json()
+        const res = await fetch(`${API}/predict`,{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                edad,
+                ingresos,
+                deuda
+            })
+        })
 
-    const prob = data.probabilidad * 100
+        if(!res.ok){
+            throw new Error("Error en la API")
+        }
 
-    historial.push(prob)
+        const data = await res.json()
 
-    if(data.riesgo === 1) altos++
+        const prob = data.probabilidad * 100
 
-    document.getElementById("resultado").innerHTML =
-        data.nivel_riesgo === "ALTO"
-        ? "🔴 Riesgo Alto"
-        : data.nivel_riesgo === "MEDIO"
-        ? "🟠 Riesgo Medio"
-        : "🟢 Riesgo Bajo"
+        historial.push(prob)
 
-    document.getElementById("gauge").style.width = prob + "%"
+        if(data.riesgo === 1){
+            altos++
+        }
 
-    document.getElementById("kpiTotal").innerText = historial.length
-    document.getElementById("kpiHigh").innerText = altos
+        document.getElementById("resultado").innerHTML =
+            data.nivel_riesgo === "ALTO"
+            ? "🔴 Riesgo Alto"
+            : data.nivel_riesgo === "MEDIO"
+            ? "🟠 Riesgo Medio"
+            : "🟢 Riesgo Bajo"
 
-    let avg = historial.reduce((a,b)=>a+b,0)/historial.length
-    document.getElementById("kpiAvg").innerText = avg.toFixed(1)+"%"
+        document.getElementById("gauge").style.width = prob + "%"
 
-    chart.data.labels.push(historial.length)
-    chart.data.datasets[0].data.push(prob)
-    chart.update()
+        document.getElementById("kpiTotal").innerText = historial.length
+        document.getElementById("kpiHigh").innerText = altos
+
+        let avg = historial.reduce((a,b)=>a+b,0)/historial.length
+
+        document.getElementById("kpiAvg").innerText =
+            avg.toFixed(1) + "%"
+
+        chart.data.labels.push(historial.length)
+        chart.data.datasets[0].data.push(prob)
+
+        chart.update()
+
+    }catch(error){
+
+        console.error(error)
+
+        document.getElementById("resultado").innerHTML =
+            "❌ Error conectando API"
+
+    }
 }
 
 </script>
